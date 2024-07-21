@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: k8s-app
+  name: k8s-app
+  namespace: k8s-app-namespace
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: k8s-app
+      version: master
+  template:
+    metadata:
+      labels:
+        app: k8s-app
+        version: master
+    spec:
+      containers:
+      - name: k8s-app
+        image: k8s-app-image
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: k8s-app-env
+        - secretRef:
+            name: k8s-app-secret
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 90
+          periodSeconds: 100
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+        - name: secret-volume
+          mountPath: /etc/secret
+      volumes:
+      - name: config-volume
+        configMap:
+          name: k8s-app-env
+      - name: secret-volume
+        secret:
+          secretName: k8s-app-secret
+      imagePullSecrets:
+      - name: gcr-authen
